@@ -1,0 +1,98 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ---------------------------------------------------------------
+    //  SUPPORTFLOW — SECURITY MODEL.
+    //  - The authenticated user ALWAYS comes from request.auth.
+    //  - Roles come from the verified ID token claims first, then the
+    //    profile document. Clients can never mint a role.
+    //  - Tickets / events are server-managed (API via Admin SDK or the
+    //    realtime triggers below). Only message writes are allowed from
+    //    the client, and only by a participant with provenance checks.
+    // ---------------------------------------------------------------
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function profileRole() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    }
+
+    function userRole() {
+      return request.auth.token.role ? request.auth.token.role : profileRole();
+    }
+
+    function isAgent() {
+      return isSignedIn() && userRole() == 'agent';
+    }
+
+    function isUser(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    // Participants: the owning customer or the assigned agent.
+    // The open (NEW) pool is readable by any agent so they can claim it.
+    function isTicketParticipant(ticketId) {
+      let t = get(/databases/$(database)/documents/tickets/$(ticketId));
+      return isSignedIn() && (
+        request.auth.uid == t.data.customerId ||
+        (isAgent() && request.auth.uid == t.data.assignedAgentId) ||
+        (isAgent() && t.data.status == 'NEW')
+      );
+    }
+
+    // ---- users/{uid}: owner-managed profile; role is immutable. ----
+    match /users/{uid} {
+      allow read: if isUser(uid) || isAgent();
+      allow create: if isUser(uid) && !('role' in request.resource.data);
+      allow update: if isUser(uid) &&
+        (!('role' in request.resource.data) || request.resource.data.role == resource.data.role);
+      allow delete: if false;
+    }
+
+    // ---- counters: server-managed ticket number sequence. ----
+    match /counters/{counterId} {
+      allow read, write: if false;
+    }
+
+    // ---- tickets: writes are server-side only (API / Admin SDK). ----
+    // Read uses resource.data directly (NOT a get() on the tickets collection)
+    // so that collection QUERIES used by the realtime dashboards can be
+    // authorized. Firestore cannot authorize a query when the rule reads the
+    // same collection it is querying via get(). Roles come from the ID-token
+    // custom claim (isAgent), never from a get() here.
+    match /tickets/{ticketId} {
+      allow read: if isSignedIn() && (
+        request.auth.uid == resource.data.customerId ||
+        (isAgent() && request.auth.uid == resource.data.assignedAgentId) ||
+        (isAgent() && resource.data.status == 'NEW')
+      );
+      allow create: if false;
+      allow update: if false;
+      allow delete: if false;
+
+// ---- messages: participants may append with provenance checks.
+    // Resolved tickets are locked: no new writes until an agent reopens them.
+    match /messages/{messageId} {
+      allow read: if isTicketParticipant(ticketId);
+      allow create: if isSignedIn() &&
+        request.resource.data.senderId == request.auth.uid &&
+        request.resource.data.ticketId == ticketId &&
+        request.resource.data.message is string &&
+        request.resource.data.message.size() > 0 &&
+        request.resource.data.message.size() <= 2000 &&
+        isTicketParticipant(ticketId) &&
+        get(/databases/$(database)/documents/tickets/$(ticketId)).data.status != 'RESOLVED';
+      allow update, delete: if false;
+    }
+    }
+
+    // ---- events: read for future notifications; written only by server triggers. ----
+    match /events/{eventId} {
+      allow read: if isSignedIn();
+      allow write: if false;
+    }
+  }
+}

@@ -1,0 +1,39 @@
+node_modules
+dist
+dist-ssr
+*.local
+.env
+.env.local
+.env.*.local
+
+# Server (backend) secrets — see backend/.env.example
+backend/.env
+backend/.env.local
+backend/.runtimeconfig.json
+backend/service-account.json
+firebase-debug.log
+firebase-debug.*.log
+
+# Runtime / emulator artifacts
+emulator.log
+.firebase/
+*.log
+
+# Editor / OS
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Local tooling / local-only config
+opencode.json
+*.docx
+
+# AWS / infrastructure secrets
+*.pem
+supportflow-key.pem

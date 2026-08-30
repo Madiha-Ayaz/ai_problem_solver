@@ -1,0 +1,21 @@
+{
+  "name": "supportflow-backend",
+  "version": "1.0.0",
+  "private": true,
+  "type": "commonjs",
+  "main": "index.js",
+  "engines": {
+    "node": "20"
+  },
+  "scripts": {
+    "dev": "set \"FUNCTIONS_EMULATOR_ALLOW_EXTERNAL=true\"&& set \"FUNCTIONS_DISCOVERY_TIMEOUT=60\"&& firebase emulators:start --only functions --project fullstackdev-29215",
+    "build": "node -e \"require('./index.js'); console.log('backend OK')\""
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.19.2",
+    "firebase-admin": "^12.7.0",
+    "firebase-functions": "^5.1.0",
+    "pg": "^8.23.0"
+  }
+}

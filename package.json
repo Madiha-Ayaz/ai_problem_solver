@@ -1,0 +1,13 @@
+{
+  "name": "supportflow",
+  "private": true,
+  "version": "1.0.0",
+  "description": "SupportFlow monorepo — backend (Cloud Functions) + frontend (React/Vite)",
+  "scripts": {
+    "dev": "node scripts/dev.js",
+    "dev:backend": "set \"FUNCTIONS_EMULATOR_ALLOW_EXTERNAL=true\"&& set \"FUNCTIONS_DISCOVERY_TIMEOUT=60\"&& firebase emulators:start --only functions --project fullstackdev-29215",
+    "dev:frontend": "npm --prefix frontend run dev",
+    "build": "npm --prefix frontend run build",
+    "preview": "npm --prefix frontend run preview"
+  }
+}
